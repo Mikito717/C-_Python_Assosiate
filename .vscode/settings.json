@@ -56,5 +56,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "C__Python_assosiate.sln"
+    "dotnet.defaultSolution": "C-_Python_Assosiate.sln"
 }
