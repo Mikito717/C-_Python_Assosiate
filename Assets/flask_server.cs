@@ -1,58 +1,79 @@
 using System;
 using System.Diagnostics;
 using UnityEngine;
-using System.Threading;
+using System.Threading.Tasks;
 
-public class activate_python : MonoBehaviour
+public class ActivatePython : MonoBehaviour
 {    
-    private int pid;
+    private static Process flaskProcess;
+
     public void StartFlaskServer()
     {
-        ProcessStartInfo startInfo = new ProcessStartInfo();
-        startInfo.FileName = "powershell.exe";
-        startInfo.Arguments = "/c cd ./Assets; dir; run_flask.bat";
-        startInfo.RedirectStandardOutput = true;
-        startInfo.RedirectStandardError = true;
-        startInfo.UseShellExecute = false;
-        startInfo.CreateNoWindow = true;
+        Task.Run(() => {
+            ProcessStartInfo startInfo = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = "/c cd ./Assets; run_flask.bat",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
 
-        using (Process process = new Process())
-        {
-            process.StartInfo = startInfo;
-            
-            
-            process.OutputDataReceived += (sender, data) => {
+            flaskProcess = new Process
+            {
+                StartInfo = startInfo
+            };
+            UnityEngine.Debug.Log(flaskProcess);
+            UnityEngine.Debug.Log("Flask server starting...");
+
+            flaskProcess.OutputDataReceived += (sender, data) => {
                 if (data.Data != null)
                     UnityEngine.Debug.Log(data.Data);
-                    //Console.WriteLine($"Output: {data.Data}");
             };
-            process.ErrorDataReceived += (sender, data) => {
+            flaskProcess.ErrorDataReceived += (sender, data) => {
                 if (data.Data != null)
                     UnityEngine.Debug.Log($"Error: {data.Data}");
-                    //Console.WriteLine($"Error: {data.Data}");
             };
-            
-            process.Start();
-            
-            pid = process.Id;
-            UnityEngine.Debug.Log($"Flask Started Process ID: {pid}");
-            
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-            process.WaitForExit();
-        }
-        UnityEngine.Debug.Log("Flask server started");
-    }   
+
+            flaskProcess.Start();
+            UnityEngine.Debug.Log($"Flask Started Process ID: {flaskProcess.Id}");
+
+            flaskProcess.BeginOutputReadLine();
+            flaskProcess.BeginErrorReadLine();
+
+            // Wait for the process to exit, but in the background
+            flaskProcess.WaitForExit();
+            UnityEngine.Debug.Log("Flask server stopped");
+        });
+    }
+
+        void OnApplicationQuit()
+    {
+        StopFlaskServer();
+    }
+
+    void OnDisable()
+    {
+        StopFlaskServer();
+    }
+
     public void StopFlaskServer()
     {
-    try
-        {
-            Process.GetProcessById(pid).Kill();
-            UnityEngine.Debug.Log("Flaskサーバーが停止しました。");
-        }
-        catch (Exception ex)
-        {
-            UnityEngine.Debug.LogError($"プロセスの停止に失敗しました: {ex.Message}");
-        }
+            // バッチファイルのパスを指定
+    string batFilePath = @"Assets\stop_flask.bat";
+
+    // バッチファイルを実行
+    var processInfo = new System.Diagnostics.ProcessStartInfo("powershell.exe", "/c " + batFilePath)
+    {
+        CreateNoWindow = true,
+        UseShellExecute = false
+    };
+
+    using (var process = System.Diagnostics.Process.Start(processInfo))
+    {
+        process.WaitForExit();
+        UnityEngine.Debug.Log("Flaskサーバーが停止しました。");
+    }
     }
 }
